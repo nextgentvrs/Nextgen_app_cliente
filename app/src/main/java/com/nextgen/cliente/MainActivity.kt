@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var refresh: SwipeRefreshLayout
+    @Volatile private var chatEstaAberto = false
 
     // Página hospedada no GitHub Pages
     private val urlApp = "https://nextgentvrs.github.io/Nextgen_cliente/"
@@ -39,6 +40,12 @@ class MainActivity : AppCompatActivity() {
 
     /** Ponte entre a página (site) e o app: usada para as notificações. */
     inner class PonteApp {
+        /** O robô de atendimento abriu/fechou: não deixar o "puxar para atualizar" atrapalhar. */
+        @JavascriptInterface
+        fun chatAberto(aberto: Boolean) {
+            chatEstaAberto = aberto
+        }
+
         @JavascriptInterface
         fun promoVista(id: String) {
             getSharedPreferences("promo", MODE_PRIVATE).edit().putString("ultima", id).apply()
@@ -80,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         refresh = SwipeRefreshLayout(this).apply {
             addView(webView)
             setOnRefreshListener { webView.reload() }
+            setOnChildScrollUpCallback { _, _ -> chatEstaAberto || webView.scrollY > 0 }
         }
         setContentView(refresh)
 
@@ -117,7 +125,8 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        webView.loadUrl(urlApp)
+        // o "?v=" faz o app abrir sempre a versão mais nova do site
+        webView.loadUrl(urlApp + "?v=" + System.currentTimeMillis())
 
         // permissão para notificações (Android 13+)
         if (Build.VERSION.SDK_INT >= 33 &&
